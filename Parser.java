@@ -47,6 +47,7 @@ public class Parser {
         while(!toke.peek(0).get().getType().equals(Token.TokenTypes.DEDENT)){
             no.add(MethodHeader());
         }
+        toke.matchAndRemove(Token.TokenTypes.DEDENT);
         node.methods = no;
         return node;
     }
@@ -66,16 +67,11 @@ public class Parser {
             throw new SyntaxErrorException("not a left parenthesis", toke.getCurrentLine(), toke.getCurrentColumnNumber());
         }
         node.parameters = ParameterVariableDeclarations();
+
         if(toke.peek(0).get().getType().equals(Token.TokenTypes.RPAREN)){
             toke.matchAndRemove(Token.TokenTypes.RPAREN);
         }else {
             throw new SyntaxErrorException("not a right parenthesis", toke.getCurrentLine(), toke.getCurrentColumnNumber());
-        }
-
-        if(toke.peek(0).get().getType().equals(Token.TokenTypes.NEWLINE)){
-            RequireNewLine();
-        }else {
-            throw new SyntaxErrorException("missing newline right colon", toke.getCurrentLine(), toke.getCurrentColumnNumber());
         }
 
         if(toke.peek(0).get().getType().equals(Token.TokenTypes.COLON)){
@@ -83,10 +79,13 @@ public class Parser {
             node.returns = ParameterVariableDeclarations();
             if(toke.peek(0).get().getType().equals(Token.TokenTypes.NEWLINE)){
                 RequireNewLine();
-            }else {
-                throw new SyntaxErrorException("missing newlines return variables", toke.getCurrentLine(), toke.getCurrentColumnNumber());
             }
         }
+
+        if(toke.peek(0).get().getType().equals(Token.TokenTypes.NEWLINE)){
+            RequireNewLine();
+        }
+
         return node;
     }
 
@@ -115,9 +114,10 @@ public class Parser {
     private List<VariableDeclarationNode> ParameterVariableDeclarations() throws SyntaxErrorException {
         List<VariableDeclarationNode> enter = new ArrayList<>();
         VariableDeclarationNode node = ParameterVariableDeclaration();
-
         enter.add(node);
-        while(toke.matchAndRemove(Token.TokenTypes.COMMA).isPresent()){
+
+        while(toke.peek(0).equals(Token.TokenTypes.COMMA)){
+            toke.matchAndRemove(Token.TokenTypes.COMMA);
             node = ParameterVariableDeclaration();
             enter.add(node);
         }
