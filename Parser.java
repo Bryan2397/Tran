@@ -15,9 +15,11 @@ public class Parser {
     }
 
     public void Tran() throws SyntaxErrorException {
-            Optional<Token> n = toke.peek(0);
-            if(n.get().getType().equals(Token.TokenTypes.INTERFACE)){
-                tran.Interfaces.add(Interface());
+
+            while(!toke.done()){
+                if(toke.peek(0).get().getType().equals(Token.TokenTypes.INTERFACE)){
+                    tran.Interfaces.add(Interface());
+                }
             }
 
     }
@@ -116,7 +118,7 @@ public class Parser {
         VariableDeclarationNode node = ParameterVariableDeclaration();
         enter.add(node);
 
-        while(toke.peek(0).equals(Token.TokenTypes.COMMA)){
+        while(toke.peek(0).get().getType().equals(Token.TokenTypes.COMMA)){
             toke.matchAndRemove(Token.TokenTypes.COMMA);
             node = ParameterVariableDeclaration();
             enter.add(node);
