@@ -15,22 +15,20 @@ public class Parser {
     }
 
     public void Tran() throws SyntaxErrorException {
-
             while(!toke.done()){
                 if(toke.peek(0).get().getType().equals(Token.TokenTypes.INTERFACE)){
                     tran.Interfaces.add(Interface());
                 }
             }
-
     }
 
 
     private InterfaceNode Interface() throws SyntaxErrorException{
         InterfaceNode node = new InterfaceNode();
         List<MethodHeaderNode> no = new ArrayList<>();
-        if(toke.peek(0).get().getType().equals(Token.TokenTypes.INTERFACE)){
-            toke.matchAndRemove(Token.TokenTypes.INTERFACE);
-        }
+
+        toke.matchAndRemove(Token.TokenTypes.INTERFACE);
+
         if(toke.peek(0).get().getType().equals(Token.TokenTypes.WORD)){
             Optional<Token> A = toke.matchAndRemove(Token.TokenTypes.WORD);
             node.name = A.get().getValue();
@@ -51,6 +49,59 @@ public class Parser {
         }
         toke.matchAndRemove(Token.TokenTypes.DEDENT);
         node.methods = no;
+        return node;
+    }
+
+    private ClassNode classes() throws SyntaxErrorException{
+        ClassNode node = new ClassNode();
+        toke.matchAndRemove(Token.TokenTypes.CLASS);
+        toke.matchAndRemove(Token.TokenTypes.WORD);
+        
+    }
+
+    private ConstructorNode construct() throws SyntaxErrorException{
+        ConstructorNode node = new ConstructorNode();
+        List<VariableDeclarationNode> nodes;
+
+        toke.matchAndRemove(Token.TokenTypes.CONSTRUCT);
+
+        if(toke.peek(0).get().getType().equals(Token.TokenTypes.LPAREN)){
+            toke.matchAndRemove(Token.TokenTypes.LPAREN);
+        }else {
+            throw new SyntaxErrorException("no left parenthesis after construct", toke.getCurrentLine(), toke.getCurrentColumnNumber());
+        }
+        nodes = ParameterVariableDeclarations();
+        node.parameters = nodes;
+
+        if (toke.peek(0).get().getType().equals(Token.TokenTypes.RPAREN)){
+            toke.matchAndRemove(Token.TokenTypes.RPAREN);
+        }else {
+            throw new SyntaxErrorException("no right parenthesis after construct", toke.getCurrentLine(), toke.getCurrentColumnNumber());
+        }
+        if(toke.peek(0).get().getType().equals(Token.TokenTypes.NEWLINE)){
+            RequireNewLine();
+        }
+
+        //Method Body
+        if(toke.peek(0).get().getType().equals(Token.TokenTypes.INDENT)){
+            toke.matchAndRemove(Token.TokenTypes.INDENT);
+        }else {
+            throw new SyntaxErrorException("missing indent after newline in construct", toke.getCurrentLine(), toke.getCurrentColumnNumber());
+        }
+
+        node.locals = ParameterVariableDeclarations();
+        return node;
+    }
+
+
+
+
+    private MemberNode member() throws SyntaxErrorException{
+        MemberNode node = new MemberNode();
+        node.declaration = ParameterVariableDeclaration();
+        if(toke.peek(0).get().getType().equals(Token.TokenTypes.NEWLINE)){
+            RequireNewLine();
+        }
         return node;
     }
 
