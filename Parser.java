@@ -15,10 +15,11 @@ public class Parser {
 
     public void Tran() throws SyntaxErrorException {
         while(!toke.done()){
-            if(toke.peek(0).get().getType().equals(Token.TokenTypes.INTERFACE)){
+            if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.INTERFACE)){
                 tran.Interfaces.add(Interface());
             }
-            if(toke.peek(0).get().getType().equals(Token.TokenTypes.CLASS)){
+
+            if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.CLASS)){
                 tran.Classes.add(classes());
             }
         }
@@ -30,7 +31,6 @@ public class Parser {
         List<MethodHeaderNode> no = new ArrayList<>();
 
         toke.matchAndRemove(Token.TokenTypes.INTERFACE);
-
         if(toke.peek(0).get().getType().equals(Token.TokenTypes.WORD)){
             Optional<Token> A = toke.matchAndRemove(Token.TokenTypes.WORD);
             node.name = A.get().getValue();
@@ -49,14 +49,25 @@ public class Parser {
         while(!toke.peek(0).get().getType().equals(Token.TokenTypes.DEDENT)){
             no.add(MethodHeader());
         }
-        toke.matchAndRemove(Token.TokenTypes.DEDENT);
         node.methods = no;
+        toke.matchAndRemove(Token.TokenTypes.DEDENT);
+
+        if(toke.done()){
+            return node;
+        }
+
+        while(toke.peek(0).get().getType().equals(Token.TokenTypes.DEDENT) || toke.peek(0).get().getType().equals(Token.TokenTypes.NEWLINE)){
+            if(toke.peek(0).get().getType().equals(Token.TokenTypes.DEDENT)){toke.matchAndRemove(Token.TokenTypes.DEDENT);}
+            if(toke.peek(0).get().getType().equals(Token.TokenTypes.NEWLINE)){RequireNewLine();}
+        }
+
         return node;
     }
 
     // Class =  "class" IDENTIFIER ( "implements" IDENTIFIER ( "," IDENTIFIER )* )? NEWLINE INDENT ( Constructor | MethodDeclaration | Member )* DEDENT
     private ClassNode classes() throws SyntaxErrorException{
         ClassNode node = new ClassNode();
+        List<String> inter = new ArrayList<>();
         List<ConstructorNode> struct = new ArrayList<>();
         List<MethodDeclarationNode> method = new ArrayList<>();
         List<MemberNode> member = new ArrayList<>();
@@ -70,16 +81,15 @@ public class Parser {
 
         if(toke.peek(0).get().getType().equals(Token.TokenTypes.IMPLEMENTS)){
             toke.matchAndRemove(Token.TokenTypes.IMPLEMENTS);
-            toke.matchAndRemove(Token.TokenTypes.WORD);
-            if(toke.peek(0).equals(Token.TokenTypes.COMMA)){
-                while(toke.peek(0).get().getType().equals(Token.TokenTypes.COMMA)){
-                    toke.matchAndRemove(Token.TokenTypes.COMMA);
-                    toke.matchAndRemove(Token.TokenTypes.WORD);
-                }
+            while(toke.peek(0).get().getType().equals(Token.TokenTypes.WORD)){
+                Optional<Token> s = toke.matchAndRemove(Token.TokenTypes.WORD);
+                inter.add(s.get().getValue());
+                toke.matchAndRemove(Token.TokenTypes.COMMA);
+
             }
         }
 
-
+        node.interfaces = inter;
         RequireNewLine();
         toke.matchAndRemove(Token.TokenTypes.INDENT);
         while(toke.peek(0).get().getType().equals(Token.TokenTypes.CONSTRUCT)){
@@ -92,6 +102,7 @@ public class Parser {
         node.methods = method;
         while (toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.WORD)){
             member.add(member());
+            RequireNewLine();
         }
         node.members = member;
         toke.matchAndRemove(Token.TokenTypes.DEDENT);
