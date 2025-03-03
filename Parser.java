@@ -2,7 +2,6 @@ package Tran;
 import AST.*;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,11 +14,14 @@ public class Parser {
     }
 
     public void Tran() throws SyntaxErrorException {
-            while(!toke.done()){
-                if(toke.peek(0).get().getType().equals(Token.TokenTypes.INTERFACE)){
-                    tran.Interfaces.add(Interface());
-                }
+        while(!toke.done()){
+            if(toke.peek(0).get().getType().equals(Token.TokenTypes.INTERFACE)){
+                tran.Interfaces.add(Interface());
             }
+            if(toke.peek(0).get().getType().equals(Token.TokenTypes.CLASS)){
+                tran.Classes.add(classes());
+            }
+        }
     }
 
 
@@ -52,16 +54,57 @@ public class Parser {
         return node;
     }
 
+    // Class =  "class" IDENTIFIER ( "implements" IDENTIFIER ( "," IDENTIFIER )* )? NEWLINE INDENT ( Constructor | MethodDeclaration | Member )* DEDENT
     private ClassNode classes() throws SyntaxErrorException{
         ClassNode node = new ClassNode();
+        List<ConstructorNode> struct = new ArrayList<>();
+        List<MethodDeclarationNode> method = new ArrayList<>();
+        List<MemberNode> member = new ArrayList<>();
         toke.matchAndRemove(Token.TokenTypes.CLASS);
-        toke.matchAndRemove(Token.TokenTypes.WORD);
-        
+        if(toke.peek(0).get().getType().equals(Token.TokenTypes.WORD)){
+            Optional<Token> n = toke.matchAndRemove(Token.TokenTypes.WORD);
+            node.name = n.get().getValue();
+        }else{
+            throw new SyntaxErrorException("no class name after class keyword", toke.getCurrentLine(), toke.getCurrentColumnNumber());
+        }
+
+        if(toke.peek(0).get().getType().equals(Token.TokenTypes.IMPLEMENTS)){
+            toke.matchAndRemove(Token.TokenTypes.IMPLEMENTS);
+            toke.matchAndRemove(Token.TokenTypes.WORD);
+            if(toke.peek(0).equals(Token.TokenTypes.COMMA)){
+                while(toke.peek(0).get().getType().equals(Token.TokenTypes.COMMA)){
+                    toke.matchAndRemove(Token.TokenTypes.COMMA);
+                    toke.matchAndRemove(Token.TokenTypes.WORD);
+                }
+            }
+        }
+
+
+        RequireNewLine();
+        toke.matchAndRemove(Token.TokenTypes.INDENT);
+        while(toke.peek(0).get().getType().equals(Token.TokenTypes.CONSTRUCT)){
+            struct.add(construct());
+        }
+        node.constructors = struct;
+        while(toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.LPAREN)){
+            method.add(MethodDec());
+        }
+        node.methods = method;
+        while (toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.WORD)){
+            member.add(member());
+        }
+        node.members = member;
+        toke.matchAndRemove(Token.TokenTypes.DEDENT);
+
+        return node;
     }
 
+    // Constructor = "construct" "(" ParameterVariableDeclarations ")" NEWLINE MethodBody
     private ConstructorNode construct() throws SyntaxErrorException{
         ConstructorNode node = new ConstructorNode();
         List<VariableDeclarationNode> nodes;
+        List<VariableDeclarationNode> lokals = new ArrayList<>();
+        List<StatementNode> n = new ArrayList<>();
 
         toke.matchAndRemove(Token.TokenTypes.CONSTRUCT);
 
@@ -82,27 +125,143 @@ public class Parser {
             RequireNewLine();
         }
 
-        //Method Body
+        // MethodBody = INDENT ( VariableDeclarations )*  Statement* DEDENT
         if(toke.peek(0).get().getType().equals(Token.TokenTypes.INDENT)){
             toke.matchAndRemove(Token.TokenTypes.INDENT);
         }else {
             throw new SyntaxErrorException("missing indent after newline in construct", toke.getCurrentLine(), toke.getCurrentColumnNumber());
         }
 
-        node.locals = ParameterVariableDeclarations();
+        while(toke.peek(0).get().getType().equals(Token.TokenTypes.WORD)){
+            lokals.add(VariableDeclaration());
+        }
+        node.locals = lokals;
+        node.statements = statements();
+        toke.matchAndRemove(Token.TokenTypes.DEDENT);
+
+        return node;
+    }
+
+
+    // Member = VariableDeclarations
+    private MemberNode member() throws SyntaxErrorException{
+        MemberNode node = new MemberNode();
+        node.declaration = ParameterVariableDeclaration();
+
+        return node;
+    }
+
+    // VariableDeclarations =  IDENTIFIER VariableNameValue ("," VariableNameValue)* NEWLINE
+    private VariableDeclarationNode VariableDeclaration() throws SyntaxErrorException{
+        VariableDeclarationNode node = new VariableDeclarationNode();
+
+        Optional<Token> I = toke.matchAndRemove(Token.TokenTypes.WORD);
+        if(toke.peek(0).get().getType().equals(Token.TokenTypes.WORD)){
+            node.type = I.get().getValue();
+        }else{
+            throw new SyntaxErrorException("missing first word in variable declarations", toke.getCurrentLine(), toke.getCurrentColumnNumber());
+        }
+        if(toke.peek(0).get().getType().equals(Token.TokenTypes.ASSIGN)){
+            toke.matchAndRemove(Token.TokenTypes.ASSIGN);
+           /* if(toke.peek(0).isPresent()){
+                node.initializer = toke.matchAndRemove();
+            }*/
+        }
+       Optional<Token> D = toke.matchAndRemove(Token.TokenTypes.WORD);
+        node.name = D.get().getValue();
         return node;
     }
 
 
 
 
-    private MemberNode member() throws SyntaxErrorException{
-        MemberNode node = new MemberNode();
-        node.declaration = ParameterVariableDeclaration();
-        if(toke.peek(0).get().getType().equals(Token.TokenTypes.NEWLINE)){
-            RequireNewLine();
+
+    // MethodDeclaration = "private"? "shared"? MethodHeader NEWLINE MethodBody
+    private MethodDeclarationNode MethodDec() throws SyntaxErrorException{
+        MethodDeclarationNode node = new MethodDeclarationNode();
+        List<VariableDeclarationNode> nodes = new ArrayList<>();
+        boolean pivot = true;
+        boolean share = true;
+        if (toke.matchAndRemove(Token.TokenTypes.PRIVATE).isPresent()){
+            node.isPrivate = pivot;
         }
+        if (toke.matchAndRemove(Token.TokenTypes.SHARED).isPresent()) {
+            toke.matchAndRemove(Token.TokenTypes.SHARED);
+            node.isShared = share;
+        }
+
+        MethodHeaderNode name = MethodHeader();
+        node.name = name.name;
+        node.parameters = name.parameters;
+        node.returns = name.returns;
+        RequireNewLine();
+        while(toke.peek(0).get().getType().equals(Token.TokenTypes.WORD)){
+            nodes = ParameterVariableDeclarations();
+            node.locals = nodes;
+        }
+        node.statements = statements();
         return node;
+    }
+
+    // Statement = If | Loop | MethodCall | Assignment
+    private StatementNode statement() throws SyntaxErrorException{
+        StatementNode node = null;
+        if(toke.peek(0).get().getType().equals(Token.TokenTypes.IF)){
+            node = MethodIF();
+        }
+        if(toke.peek(0).get().getType().equals(Token.TokenTypes.LOOP)){
+            node = MethodLOOP();
+        }
+        /*if(toke.peek(0).get().getType().equals(Token.TokenTypes.ASSIGN)){
+           node = Assign();
+        }*/
+
+        return node;
+    }
+
+    // Loop = "loop" (VariableReference "=" )?  ( BoolExpTerm ) NEWLINE Statements
+    private LoopNode MethodLOOP() {
+        LoopNode node = new LoopNode();
+
+        return node;
+    }
+
+    //Statements = INDENT Statement*  DEDENT
+    private List<StatementNode> statements() throws SyntaxErrorException{
+        List<StatementNode> node = new ArrayList<>();
+        toke.matchAndRemove(Token.TokenTypes.INDENT);
+        while (toke.matchAndRemove(Token.TokenTypes.DEDENT).isEmpty()){
+            node.add(statement());
+        }
+        toke.matchAndRemove(Token.TokenTypes.DEDENT);
+        return node;
+    }
+
+
+    // If = "if" BoolExpTerm NEWLINE Statements ("else" NEWLINE (Statement | Statements))?
+    private IfNode MethodIF() throws SyntaxErrorException {
+        IfNode node = new IfNode();
+        toke.matchAndRemove(Token.TokenTypes.IF);
+        BoolExpTerm();
+        RequireNewLine();
+        node.statements = statements();
+        if(toke.peek(0).get().getValue().equals("else")){
+            node.elseStatement = Optional.of(Else());
+        }
+        RequireNewLine();
+
+        return node;
+    }
+
+    private ElseNode Else() throws SyntaxErrorException{
+        ElseNode node = new ElseNode();
+        toke.matchAndRemove(Token.TokenTypes.WORD);
+        RequireNewLine();
+        node.statements = statements();
+        return node;
+    }
+
+    private void BoolExpTerm() {
     }
 
     private MethodHeaderNode MethodHeader() throws SyntaxErrorException {
@@ -126,7 +285,6 @@ public class Parser {
         }else {
             throw new SyntaxErrorException("not a right parenthesis", toke.getCurrentLine(), toke.getCurrentColumnNumber());
         }
-
         if(toke.peek(0).get().getType().equals(Token.TokenTypes.COLON)){
             toke.matchAndRemove(Token.TokenTypes.COLON);
             node.returns = ParameterVariableDeclarations();
@@ -134,11 +292,9 @@ public class Parser {
                 RequireNewLine();
             }
         }
-
         if(toke.peek(0).get().getType().equals(Token.TokenTypes.NEWLINE)){
             RequireNewLine();
         }
-
         return node;
     }
 
@@ -182,6 +338,4 @@ public class Parser {
             toke.matchAndRemove(Token.TokenTypes.NEWLINE);
         }
     }
-
-
 }
