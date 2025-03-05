@@ -18,7 +18,7 @@ public class Parser {
             if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.INTERFACE)){
                 tran.Interfaces.add(Interface());
             }
-
+            if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.NEWLINE)){RequireNewLine();}
             if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.CLASS)){
                 tran.Classes.add(classes());
             }
@@ -56,9 +56,8 @@ public class Parser {
             return node;
         }
 
-        while(toke.peek(0).get().getType().equals(Token.TokenTypes.DEDENT) || toke.peek(0).get().getType().equals(Token.TokenTypes.NEWLINE)){
+        while(toke.peek(0).get().getType().equals(Token.TokenTypes.DEDENT)){
             if(toke.peek(0).get().getType().equals(Token.TokenTypes.DEDENT)){toke.matchAndRemove(Token.TokenTypes.DEDENT);}
-            if(toke.peek(0).get().getType().equals(Token.TokenTypes.NEWLINE)){RequireNewLine();}
         }
 
         return node;
@@ -92,20 +91,27 @@ public class Parser {
         node.interfaces = inter;
         RequireNewLine();
         toke.matchAndRemove(Token.TokenTypes.INDENT);
-        while(toke.peek(0).get().getType().equals(Token.TokenTypes.CONSTRUCT)){
-            struct.add(construct());
-        }
-        node.constructors = struct;
-        while(toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.LPAREN)){
-            method.add(MethodDec());
-        }
-        node.methods = method;
         while (toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.WORD)){
             member.add(member());
             RequireNewLine();
         }
         node.members = member;
-        toke.matchAndRemove(Token.TokenTypes.DEDENT);
+        while(toke.peek(0).get().getType().equals(Token.TokenTypes.CONSTRUCT)){
+            struct.add(construct());
+        }
+        node.constructors = struct;
+       /* if(toke.peek(0).get().getType().equals(Token.TokenTypes.WORD)){
+            toke.matchAndRemove(Token.TokenTypes.WORD);
+
+        }*/
+        while(toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.LPAREN)){
+            method.add(MethodDec());
+        }
+        node.methods = method;
+
+        while (!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.DEDENT)){
+            toke.matchAndRemove(Token.TokenTypes.DEDENT);
+        }
 
         return node;
     }
@@ -147,7 +153,10 @@ public class Parser {
             lokals.add(VariableDeclaration());
         }
         node.locals = lokals;
-        node.statements = statements();
+        /*
+        if(!toke.done()){
+            node.statements = statements();
+        }*/
         toke.matchAndRemove(Token.TokenTypes.DEDENT);
 
         return node;
@@ -190,7 +199,7 @@ public class Parser {
     // MethodDeclaration = "private"? "shared"? MethodHeader NEWLINE MethodBody
     private MethodDeclarationNode MethodDec() throws SyntaxErrorException{
         MethodDeclarationNode node = new MethodDeclarationNode();
-        List<VariableDeclarationNode> nodes = new ArrayList<>();
+        List<VariableDeclarationNode> nodes;
         boolean pivot = true;
         boolean share = true;
         if (toke.matchAndRemove(Token.TokenTypes.PRIVATE).isPresent()){
@@ -223,16 +232,23 @@ public class Parser {
         if(toke.peek(0).get().getType().equals(Token.TokenTypes.LOOP)){
             node = MethodLOOP();
         }
-        /*if(toke.peek(0).get().getType().equals(Token.TokenTypes.ASSIGN)){
-           node = Assign();
-        }*/
+        if(toke.peek(0).get().getType().equals(Token.TokenTypes.ASSIGN)){
+           node = methodCall();
+        }
 
+        return node;
+    }
+
+    //(VariableReference ( "," VariableReference )* "=")? MethodCallExpression NEWLINE
+    private MethodCallStatementNode methodCall() {
+        MethodCallStatementNode node = null;
         return node;
     }
 
     // Loop = "loop" (VariableReference "=" )?  ( BoolExpTerm ) NEWLINE Statements
     private LoopNode MethodLOOP() {
         LoopNode node = new LoopNode();
+        toke.matchAndRemove(Token.TokenTypes.LOOP);
 
         return node;
     }
@@ -253,7 +269,7 @@ public class Parser {
     private IfNode MethodIF() throws SyntaxErrorException {
         IfNode node = new IfNode();
         toke.matchAndRemove(Token.TokenTypes.IF);
-        BoolExpTerm();
+        //BoolExpTerm();
         RequireNewLine();
         node.statements = statements();
         if(toke.peek(0).get().getValue().equals("else")){
