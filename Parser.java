@@ -104,7 +104,7 @@ public class Parser {
             toke.matchAndRemove(Token.TokenTypes.WORD);
 
         }*/
-        while(toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.LPAREN)){
+        while(!toke.done() && toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.LPAREN)){
             method.add(MethodDec());
         }
         node.methods = method;
@@ -199,25 +199,29 @@ public class Parser {
     // MethodDeclaration = "private"? "shared"? MethodHeader NEWLINE MethodBody
     private MethodDeclarationNode MethodDec() throws SyntaxErrorException{
         MethodDeclarationNode node = new MethodDeclarationNode();
-        List<VariableDeclarationNode> nodes;
+        List<VariableDeclarationNode> nodes = new ArrayList<>();
         boolean pivot = true;
         boolean share = true;
-        if (toke.matchAndRemove(Token.TokenTypes.PRIVATE).isPresent()){
+        if (toke.peek(0).get().getType().equals(Token.TokenTypes.PRIVATE)){
             node.isPrivate = pivot;
         }
-        if (toke.matchAndRemove(Token.TokenTypes.SHARED).isPresent()) {
+        if (toke.peek(0).get().getType().equals(Token.TokenTypes.SHARED)) {
             toke.matchAndRemove(Token.TokenTypes.SHARED);
             node.isShared = share;
         }
 
         MethodHeaderNode name = MethodHeader();
+        if (toke.peek(0).get().getType().equals(Token.TokenTypes.INDENT)){
+            toke.matchAndRemove(Token.TokenTypes.INDENT);
+        }
         node.name = name.name;
         node.parameters = name.parameters;
         node.returns = name.returns;
         RequireNewLine();
-        while(toke.peek(0).get().getType().equals(Token.TokenTypes.WORD)){
-            nodes = ParameterVariableDeclarations();
+        while(toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.WORD)){
+            nodes.add(ParameterVariableDeclaration());
             node.locals = nodes;
+            RequireNewLine();
         }
         node.statements = statements();
         return node;
@@ -232,9 +236,7 @@ public class Parser {
         if(toke.peek(0).get().getType().equals(Token.TokenTypes.LOOP)){
             node = MethodLOOP();
         }
-        if(toke.peek(0).get().getType().equals(Token.TokenTypes.ASSIGN)){
-           node = methodCall();
-        }
+
 
         return node;
     }
@@ -246,39 +248,52 @@ public class Parser {
     }
 
     // Loop = "loop" (VariableReference "=" )?  ( BoolExpTerm ) NEWLINE Statements
-    private LoopNode MethodLOOP() {
+    private LoopNode MethodLOOP() throws SyntaxErrorException{
         LoopNode node = new LoopNode();
         toke.matchAndRemove(Token.TokenTypes.LOOP);
+        RequireNewLine();
+        throw new SyntaxErrorException("missing body at loop method", toke.getCurrentLine(), toke.getCurrentColumnNumber());
 
-        return node;
+        //return node;
     }
-
-    //Statements = INDENT Statement*  DEDENT
-    private List<StatementNode> statements() throws SyntaxErrorException{
-        List<StatementNode> node = new ArrayList<>();
-        toke.matchAndRemove(Token.TokenTypes.INDENT);
-        while (toke.matchAndRemove(Token.TokenTypes.DEDENT).isEmpty()){
-            node.add(statement());
-        }
-        toke.matchAndRemove(Token.TokenTypes.DEDENT);
-        return node;
-    }
-
 
     // If = "if" BoolExpTerm NEWLINE Statements ("else" NEWLINE (Statement | Statements))?
     private IfNode MethodIF() throws SyntaxErrorException {
         IfNode node = new IfNode();
-        toke.matchAndRemove(Token.TokenTypes.IF);
-        //BoolExpTerm();
+        if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.IF)){
+            toke.matchAndRemove(Token.TokenTypes.IF);
+        }else {
+            throw new SyntaxErrorException("no if statement at method if", toke.getCurrentLine(), toke.getCurrentColumnNumber());
+        }
+        RequireNewLine();
+        throw new SyntaxErrorException("missing body at if method", toke.getCurrentLine(), toke.getCurrentColumnNumber());
+        /*BoolExpTerm();
+        if(toke.done()){
+            return node;
+        }
         RequireNewLine();
         node.statements = statements();
         if(toke.peek(0).get().getValue().equals("else")){
             node.elseStatement = Optional.of(Else());
         }
-        RequireNewLine();
 
+        RequireNewLine();
+        */
+
+        //return node;
+    }
+
+    //Statements = INDENT Statement*  DEDENT
+    private List<StatementNode> statements() throws SyntaxErrorException{
+        List<StatementNode> node = new ArrayList<>();
+        while (toke.peek(0).get().getType().equals(Token.TokenTypes.INDENT)){toke.matchAndRemove(Token.TokenTypes.INDENT);}
+        //while (!toke.done() && !toke.peek(0).get().getType().equals(Token.TokenTypes.DEDENT)){
+            node.add(statement());
+        //}
+        toke.matchAndRemove(Token.TokenTypes.DEDENT);
         return node;
     }
+
 
     private ElseNode Else() throws SyntaxErrorException{
         ElseNode node = new ElseNode();
