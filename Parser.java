@@ -153,10 +153,7 @@ public class Parser {
             lokals.add(VariableDeclaration());
         }
         node.locals = lokals;
-        /*
-        if(!toke.done()){
-            node.statements = statements();
-        }*/
+
         toke.matchAndRemove(Token.TokenTypes.DEDENT);
 
         return node;
@@ -181,12 +178,7 @@ public class Parser {
         }else{
             throw new SyntaxErrorException("missing first word in variable declarations", toke.getCurrentLine(), toke.getCurrentColumnNumber());
         }
-        if(toke.peek(0).get().getType().equals(Token.TokenTypes.ASSIGN)){
-            toke.matchAndRemove(Token.TokenTypes.ASSIGN);
-           /* if(toke.peek(0).isPresent()){
-                node.initializer = toke.matchAndRemove();
-            }*/
-        }
+
        Optional<Token> D = toke.matchAndRemove(Token.TokenTypes.WORD);
         node.name = D.get().getValue();
         return node;
@@ -236,15 +228,29 @@ public class Parser {
         if(toke.peek(0).get().getType().equals(Token.TokenTypes.LOOP)){
             node = MethodLOOP();
         }
+        if(toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.ASSIGN)){
+            node = Assign();
+        }
+
 
 
         return node;
     }
 
-    //(VariableReference ( "," VariableReference )* "=")? MethodCallExpression NEWLINE
-    private MethodCallStatementNode methodCall() {
-        MethodCallStatementNode node = null;
+    //Assignment = VariableReference "=" Expression NEWLINE
+    private AssignmentNode Assign() {
+        AssignmentNode node = null;
+        VariableReferenceNode no = null;
+        Optional<Token> a = toke.matchAndRemove(Token.TokenTypes.WORD);
+        no.name = a.get().getValue();
+        node.expression = Expression();
+
         return node;
+    }
+
+    private ExpressionNode Expression(){
+        
+        return null;
     }
 
     // Loop = "loop" (VariableReference "=" )?  ( BoolExpTerm ) NEWLINE Statements
@@ -286,10 +292,11 @@ public class Parser {
     //Statements = INDENT Statement*  DEDENT
     private List<StatementNode> statements() throws SyntaxErrorException{
         List<StatementNode> node = new ArrayList<>();
-        while (toke.peek(0).get().getType().equals(Token.TokenTypes.INDENT)){toke.matchAndRemove(Token.TokenTypes.INDENT);}
-        //while (!toke.done() && !toke.peek(0).get().getType().equals(Token.TokenTypes.DEDENT)){
+        while (toke.peek(0).get().getType().equals(Token.TokenTypes.INDENT)){
+            toke.matchAndRemove(Token.TokenTypes.INDENT);}
+        while (!toke.done() && !toke.peek(0).get().getType().equals(Token.TokenTypes.DEDENT)){
             node.add(statement());
-        //}
+        }
         toke.matchAndRemove(Token.TokenTypes.DEDENT);
         return node;
     }
@@ -366,7 +373,6 @@ public class Parser {
         List<VariableDeclarationNode> enter = new ArrayList<>();
         VariableDeclarationNode node = ParameterVariableDeclaration();
         enter.add(node);
-
         while(toke.peek(0).get().getType().equals(Token.TokenTypes.COMMA)){
             toke.matchAndRemove(Token.TokenTypes.COMMA);
             node = ParameterVariableDeclaration();
