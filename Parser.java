@@ -36,7 +36,7 @@ public class Parser {
             Optional<Token> A = toke.matchAndRemove(Token.TokenTypes.WORD);
             node.name = A.get().getValue();
         }else {
-            throw new SyntaxErrorException("Not a word Token", toke.getCurrentLine(), toke.getCurrentColumnNumber());
+            throw new SyntaxErrorException("Not a word Token for interface", toke.getCurrentLine(), toke.getCurrentColumnNumber());
         }
         if(toke.peek(0).get().getType().equals(Token.TokenTypes.NEWLINE)){
             RequireNewLine();
@@ -269,7 +269,7 @@ public class Parser {
 
             Optional<Token> a = toke.matchAndRemove(Token.TokenTypes.WORD);
             node.methodName = a.get().getValue();
-            while (toke.peek(0).get().getType().equals(Token.TokenTypes.DOT)){
+            if (toke.peek(0).get().getType().equals(Token.TokenTypes.DOT)){
                 toke.matchAndRemove(Token.TokenTypes.DOT);
                 if(toke.peek(0).get().getType().equals(Token.TokenTypes.WORD)) {
                     toke.matchAndRemove(Token.TokenTypes.WORD);
@@ -285,6 +285,10 @@ public class Parser {
             throw new SyntaxErrorException("missing left parenthesis at method call exp", toke.getCurrentLine(), toke.getCurrentColumnNumber());
         }
         exp.add(expression());
+        while(toke.peek(0).get().getType().equals(Token.TokenTypes.COMMA)){
+            exp.add(expression());
+
+        }
         if(toke.peek(0).get().getType().equals(Token.TokenTypes.RPAREN)){
             toke.matchAndRemove(Token.TokenTypes.RPAREN);
         }else {
@@ -303,7 +307,7 @@ public class Parser {
         }else {
             throw new SyntaxErrorException("missing equals at assign", toke.getCurrentLine(), toke.getCurrentColumnNumber());
         }
-        node.expression = BoolExpTerm();
+        node.expression = expression();
         RequireNewLine();
         return node;
     }
