@@ -260,7 +260,6 @@ public class Parser {
         return node;
     }
 
-
     // MethodCallExpression =  (IDENTIFIER ".")? IDENTIFIER "(" (Expression ("," Expression )* )? ")"
     private MethodCallExpressionNode MethodCallExp() throws SyntaxErrorException{
         MethodCallExpressionNode node = new MethodCallExpressionNode();
@@ -269,16 +268,17 @@ public class Parser {
 
             Optional<Token> a = toke.matchAndRemove(Token.TokenTypes.WORD);
             node.methodName = a.get().getValue();
+
             if (toke.peek(0).get().getType().equals(Token.TokenTypes.DOT)){
                 toke.matchAndRemove(Token.TokenTypes.DOT);
-                if(toke.peek(0).get().getType().equals(Token.TokenTypes.WORD)) {
-                    toke.matchAndRemove(Token.TokenTypes.WORD);
+                if(toke.peek(0).isPresent()) {
+                   Optional<Token> b = toke.matchAndRemove(Token.TokenTypes.WORD);
+                    node.objectName = Optional.ofNullable(b.get().getValue());
                 }else {
                     throw new SyntaxErrorException("missing word after dot in method call expression", toke.getCurrentLine(), toke.getCurrentColumnNumber());
                 }
             }
         }
-
         if(toke.peek(0).get().getType().equals(Token.TokenTypes.LPAREN)){
             toke.matchAndRemove(Token.TokenTypes.LPAREN);
         }else {
@@ -286,15 +286,16 @@ public class Parser {
         }
         exp.add(expression());
         while(toke.peek(0).get().getType().equals(Token.TokenTypes.COMMA)){
+            toke.matchAndRemove(Token.TokenTypes.COMMA);
             exp.add(expression());
-
         }
         if(toke.peek(0).get().getType().equals(Token.TokenTypes.RPAREN)){
             toke.matchAndRemove(Token.TokenTypes.RPAREN);
         }else {
             throw new SyntaxErrorException("missing right parenthesis at method call exp", toke.getCurrentLine(), toke.getCurrentColumnNumber());
         }
-        return null;
+        node.parameters = exp;
+        return node;
     }
 
     //Assignment = VariableReference "=" Expression NEWLINE
@@ -324,11 +325,15 @@ public class Parser {
         ExpressionNode node = null;
         CompareNode no = new CompareNode();
 
-        if(toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.NEWLINE)){
+        if(!toke.done() && toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.NEWLINE)){
             node = Reference();
             return node;
         }
 
+        if(toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.DOT) || toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.LPAREN)){
+            node = MethodCallExp();
+            return node;
+        }
 
         no.left = expression();
         if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.LESSTHAN)){
@@ -352,31 +357,76 @@ public class Parser {
         }
         if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.WORD)){
             no.right = expression();
+            return no;
         }
-
-
         node = no;
+
+
         RequireNewLine();
         return node;
     }
 
     //Expression = Term ( ("+"|"-") Term )*
-    private ExpressionNode expression(){
+    private ExpressionNode expression() throws SyntaxErrorException {
         ExpressionNode node = null;
-        node = Reference();
+        MathOpNode no = new MathOpNode();
+
+        node = Term();
+        if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.PLUS)){
+            toke.matchAndRemove(Token.TokenTypes.PLUS);
+            no.op = MathOpNode.MathOperations.add;
+            no.left = node;
+            no.right = Term();
+            return no;
+        }
+        if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.MINUS)){
+            toke.matchAndRemove(Token.TokenTypes.MINUS);
+            no.left = node;
+            no.op = MathOpNode.MathOperations.subtract;
+            no.right = Term();
+            return no;
+        }
+
         return node;
     }
     //Term = Factor ( ("*"|"/"|"%") Factor )*
-    private ExpressionNode Term(){
+    private ExpressionNode Term() throws SyntaxErrorException{
         ExpressionNode node = null;
+        MathOpNode no = new MathOpNode();
         node = Factor();
+        if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.TIMES)){
+            toke.matchAndRemove(Token.TokenTypes.TIMES);
+            no.left = node;
+            no.op = MathOpNode.MathOperations.multiply;
+            no.right = Factor();
+        }
+        if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.DIVIDE)){
+            toke.matchAndRemove(Token.TokenTypes.DIVIDE);
+            no.left = node;
+            no.op = MathOpNode.MathOperations.divide;
+            no.right = Factor();
+        }
+        if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.MODULO)){
+            toke.matchAndRemove(Token.TokenTypes.MODULO);
+            no.left = node;
+            no.op = MathOpNode.MathOperations.modulo;
+            no.right = Factor();
+        }
         return node;
     }
     //Factor = NUMBER | VariableReference |  STRINGLITERAL | CHARACTERLITERAL | MethodCallExpression | "(" Expression ")" | "new" IDENTIFIER "(" (Expression ("," Expression )*)? ")"
-    private ExpressionNode Factor(){
+    private ExpressionNode Factor() throws SyntaxErrorException{
         ExpressionNode node = null;
-        if(toke.peek(0).get().getType().equals(Token.TokenTypes.WORD)){
+        if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.WORD)){
             node = Reference();
+        }
+        if(!toke.done() && toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.DOT) || toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.LPAREN)){
+            node = MethodCallExp();
+            return node;
+        }
+        if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.NUMBER)){
+            NumericLiteralNode no = new NumericLiteralNode();
+          //  no.value =
         }
         return node;
     }
@@ -384,11 +434,13 @@ public class Parser {
     private LoopNode MethodLOOP() throws SyntaxErrorException{
         LoopNode node = new LoopNode();
         toke.matchAndRemove(Token.TokenTypes.LOOP);
+        if(!toke.done() && toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.ASSIGN)){
+            VariableReferenceNode a = Reference();
+            node.assignment = Optional.ofNullable(a);
+            toke.matchAndRemove(Token.TokenTypes.ASSIGN);
+        }
         node.expression = BoolExpTerm();
         RequireNewLine();
-        if(toke.done()){
-            throw new SyntaxErrorException("missing statements", toke.getCurrentLine(), toke.getCurrentColumnNumber());
-        }
         node.statements = statements();
 
         return node;
@@ -403,11 +455,8 @@ public class Parser {
             throw new SyntaxErrorException("no if statement at method if", toke.getCurrentLine(), toke.getCurrentColumnNumber());
         }
         RequireNewLine();
-        if(toke.done()){
-            throw new SyntaxErrorException("missing condition for if method", toke.getCurrentLine(), toke.getCurrentColumnNumber());
-        }
-        node.condition = BoolExpTerm();
 
+        node.condition = BoolExpTerm();
         RequireNewLine();
 
         node.statements = statements();
