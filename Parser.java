@@ -5,7 +5,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-public void Tran() throws SyntaxErrorException {
+
+public class Parser {
+    private TokenManager toke;
+    private TranNode tran;
+    public Parser(TranNode top, List<Token> tokens) {
+        this.toke = new TokenManager(tokens);
+        this.tran = top;
+    }
+
+    public void Tran() throws SyntaxErrorException {
         while(!toke.done()){
             if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.INTERFACE)){
                 tran.Interfaces.add(Interface());
@@ -88,17 +97,28 @@ public void Tran() throws SyntaxErrorException {
             if (toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.WORD)) {
                 member.add(member());
                 RequireNewLine();
+                if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.DEDENT)){
+                    toke.matchAndRemove(Token.TokenTypes.DEDENT);
+                    RequireNewLine();
+                }
             }
-            node.members = member;
-            if (toke.peek(0).get().getType().equals(Token.TokenTypes.CONSTRUCT)) {
+
+            if (!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.CONSTRUCT)) {
                 struct.add(construct());
             }
-            node.constructors = struct;
 
-            if (!toke.done() && toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.LPAREN)) {
+            if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.INDENT)){
+                toke.matchAndRemove(Token.TokenTypes.INDENT);
+
+            }
+            if(toke.done()){node.constructors = struct;  node.members = member; node.methods = method; return node;}
+            if(toke.peek(0).get().getType().equals(Token.TokenTypes.DEDENT)){toke.matchAndRemove(Token.TokenTypes.DEDENT);}
+            if (!toke.done() && toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.LPAREN) || toke.nextTwoTokensMatch(Token.TokenTypes.PRIVATE, Token.TokenTypes.WORD) || toke.nextTwoTokensMatch(Token.TokenTypes.SHARED, Token.TokenTypes.WORD)) {
                 method.add(MethodDec());
             }
         }
+        node.constructors = struct;
+        node.members = member;
         node.methods = method;
 
         while (!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.DEDENT)){
@@ -113,7 +133,7 @@ public void Tran() throws SyntaxErrorException {
         ConstructorNode node = new ConstructorNode();
         List<VariableDeclarationNode> nodes;
         List<VariableDeclarationNode> lokals = new ArrayList<>();
-        List<StatementNode> n = new ArrayList<>();
+
 
         toke.matchAndRemove(Token.TokenTypes.CONSTRUCT);
         if(toke.peek(0).get().getType().equals(Token.TokenTypes.LPAREN)){
@@ -121,8 +141,11 @@ public void Tran() throws SyntaxErrorException {
         }else {
             throw new SyntaxErrorException("no left parenthesis after construct", toke.getCurrentLine(), toke.getCurrentColumnNumber());
         }
-        nodes = ParameterVariableDeclarations();
-        node.parameters = nodes;
+        if(!toke.done() && toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.WORD)){
+            nodes = ParameterVariableDeclarations();
+            node.parameters = nodes;
+        }
+
 
         if (toke.peek(0).get().getType().equals(Token.TokenTypes.RPAREN)){
             toke.matchAndRemove(Token.TokenTypes.RPAREN);
@@ -140,12 +163,15 @@ public void Tran() throws SyntaxErrorException {
             throw new SyntaxErrorException("missing indent after newline in construct", toke.getCurrentLine(), toke.getCurrentColumnNumber());
         }
 
-        while(toke.peek(0).get().getType().equals(Token.TokenTypes.WORD)){
+        while(!toke.done() && toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.WORD)){
             lokals.add(VariableDeclaration());
         }
         node.locals = lokals;
+        node.statements = statements();
 
-        toke.matchAndRemove(Token.TokenTypes.DEDENT);
+        if (!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.DEDENT)){
+            toke.matchAndRemove(Token.TokenTypes.DEDENT);
+        }
 
         return node;
     }
@@ -170,7 +196,7 @@ public void Tran() throws SyntaxErrorException {
             throw new SyntaxErrorException("missing first word in variable declarations", toke.getCurrentLine(), toke.getCurrentColumnNumber());
         }
 
-       Optional<Token> D = toke.matchAndRemove(Token.TokenTypes.WORD);
+        Optional<Token> D = toke.matchAndRemove(Token.TokenTypes.WORD);
         node.name = D.get().getValue();
         if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.ASSIGN)){
             toke.matchAndRemove(Token.TokenTypes.ASSIGN);
@@ -190,10 +216,11 @@ public void Tran() throws SyntaxErrorException {
         MethodDeclarationNode node = new MethodDeclarationNode();
         List<VariableDeclarationNode> nodes = new ArrayList<>();
         List<StatementNode> no = new ArrayList<>();
-        boolean pivot = true;
-        boolean share = true;
+        boolean pivot = false;
+        boolean share = false;
         if (toke.peek(0).get().getType().equals(Token.TokenTypes.PRIVATE)){
             node.isPrivate = pivot;
+            toke.matchAndRemove(Token.TokenTypes.PRIVATE);
         }
         if (toke.peek(0).get().getType().equals(Token.TokenTypes.SHARED)) {
             toke.matchAndRemove(Token.TokenTypes.SHARED);
@@ -226,13 +253,16 @@ public void Tran() throws SyntaxErrorException {
 
         if(!toke.peek(0).get().getType().equals(Token.TokenTypes.IF) && !toke.peek(0).get().getType().equals(Token.TokenTypes.LOOP)){
             node = disambiguate();
+            return node;
         }
 
         if(toke.peek(0).get().getType().equals(Token.TokenTypes.IF)){
             node = MethodIF();
+            return node;
         }
         if(toke.peek(0).get().getType().equals(Token.TokenTypes.LOOP)){
             node = MethodLOOP();
+            return node;
         }
         return node;
     }
@@ -280,13 +310,13 @@ public void Tran() throws SyntaxErrorException {
         List<ExpressionNode> exp = new ArrayList<>();
         if(toke.peek(0).get().getType().equals(Token.TokenTypes.WORD)){
             Optional<Token> a = toke.matchAndRemove(Token.TokenTypes.WORD);
-            node.methodName = a.get().getValue();
+            node.objectName = Optional.ofNullable(a.get().getValue());
 
             if (toke.peek(0).get().getType().equals(Token.TokenTypes.DOT)){
                 toke.matchAndRemove(Token.TokenTypes.DOT);
                 if(toke.peek(0).isPresent()) {
-                   Optional<Token> b = toke.matchAndRemove(Token.TokenTypes.WORD);
-                    node.objectName = Optional.ofNullable(b.get().getValue());
+                    Optional<Token> b = toke.matchAndRemove(Token.TokenTypes.WORD);
+                    node.methodName = b.get().getValue();
                 }else {
                     throw new SyntaxErrorException("missing word after dot in method call expression", toke.getCurrentLine(), toke.getCurrentColumnNumber());
                 }
@@ -395,6 +425,7 @@ public void Tran() throws SyntaxErrorException {
             return no;
         }
 
+
         return node;
     }
     //Term = Factor ( ("*"|"/"|"%") Factor )*
@@ -425,6 +456,17 @@ public void Tran() throws SyntaxErrorException {
     //Factor = NUMBER | VariableReference |  STRINGLITERAL | CHARACTERLITERAL | MethodCallExpression | "(" Expression ")" | "new" IDENTIFIER "(" (Expression ("," Expression )*)? ")"
     private ExpressionNode Factor() throws SyntaxErrorException{
         ExpressionNode node = null;
+
+        if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.LPAREN)){
+            toke.matchAndRemove(Token.TokenTypes.LPAREN);
+            node = expression();
+            toke.matchAndRemove(Token.TokenTypes.RPAREN);
+            return node;
+
+        }
+        if(!toke.done() && toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.LPAREN)){
+            node = MethodCallExp();
+        }
         if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.WORD)){
             node = Reference();
         }
@@ -436,6 +478,18 @@ public void Tran() throws SyntaxErrorException {
             NumericLiteralNode no = new NumericLiteralNode();
             Optional<Token> a = toke.matchAndRemove(Token.TokenTypes.NUMBER);
             no.value = Float.parseFloat(a.get().getValue());
+            return no;
+        }
+        if(toke.peek(0).get().getType().equals(Token.TokenTypes.QUOTEDCHARACTER)){
+            CharLiteralNode no = new CharLiteralNode();
+            Optional<Token> a = toke.matchAndRemove(Token.TokenTypes.QUOTEDCHARACTER);
+            no.value = a.get().getValue().charAt(0);
+            return no;
+        }
+        if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.QUOTEDSTRING)){
+            StringLiteralNode no = new StringLiteralNode();
+            Optional<Token> a = toke.matchAndRemove(Token.TokenTypes.QUOTEDSTRING);
+            no.value = String.valueOf(a.get().getValue());
             return no;
         }
         return node;
@@ -544,22 +598,22 @@ public void Tran() throws SyntaxErrorException {
 
     private VariableDeclarationNode ParameterVariableDeclaration() throws SyntaxErrorException {
         VariableDeclarationNode node = new VariableDeclarationNode();
-         if (toke.peek(0).get().getType().equals(Token.TokenTypes.WORD)) {
-             Optional<Token> I = toke.matchAndRemove(Token.TokenTypes.WORD);
-             if(I.isPresent()){
-                 node.type = I.get().getValue();
-             }else{
-                 throw new SyntaxErrorException("Not a ParameterVariable Declaration word", toke.getCurrentLine(), toke.getCurrentColumnNumber());
-             }
-         }
+        if (toke.peek(0).get().getType().equals(Token.TokenTypes.WORD)) {
+            Optional<Token> I = toke.matchAndRemove(Token.TokenTypes.WORD);
+            if(I.isPresent()){
+                node.type = I.get().getValue();
+            }else{
+                throw new SyntaxErrorException("Not a ParameterVariable Declaration word", toke.getCurrentLine(), toke.getCurrentColumnNumber());
+            }
+        }
         if (toke.peek(0).get().getType().equals(Token.TokenTypes.WORD)){
-           Optional<Token> D = toke.matchAndRemove(Token.TokenTypes.WORD);
-           if(D.isPresent()){
-               node.name = D.get().getValue();
+            Optional<Token> D = toke.matchAndRemove(Token.TokenTypes.WORD);
+            if(D.isPresent()){
+                node.name = D.get().getValue();
 
-           }else{
-               throw new SyntaxErrorException("Not a ParameterVariable Declaration word", toke.getCurrentLine(), toke.getCurrentColumnNumber());
-           }
+            }else{
+                throw new SyntaxErrorException("Not a ParameterVariable Declaration word", toke.getCurrentLine(), toke.getCurrentColumnNumber());
+            }
         }
         return node;
     }
