@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-
 public class Parser {
     private TokenManager toke;
     private TranNode tran;
@@ -287,6 +286,16 @@ public class Parser {
         MethodCallStatementNode node = new MethodCallStatementNode();
         List<VariableReferenceNode> no = new ArrayList<>();
 
+        if(toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.DOT)){
+            MethodCallExpressionNode n;
+            n = MethodCallExp();
+            node.returnValues = no;
+            node.parameters = n.parameters;
+            node.methodName = n.methodName;
+            node.objectName = n.objectName;
+            RequireNewLine();
+            return node;
+        }
         no.add(Reference());
         while(toke.peek(0).get().getType().equals(Token.TokenTypes.COMMA)){
             toke.matchAndRemove(Token.TokenTypes.COMMA);
@@ -327,7 +336,10 @@ public class Parser {
         }else {
             throw new SyntaxErrorException("missing left parenthesis at method call exp", toke.getCurrentLine(), toke.getCurrentColumnNumber());
         }
+
+        if(toke.peek(0).get().getType().equals(Token.TokenTypes.RPAREN)){toke.matchAndRemove(Token.TokenTypes.RPAREN); return node;}
         exp.add(expression());
+
         while(toke.peek(0).get().getType().equals(Token.TokenTypes.COMMA)){
             toke.matchAndRemove(Token.TokenTypes.COMMA);
             exp.add(expression());
@@ -366,7 +378,6 @@ public class Parser {
     //BoolExpTerm = MethodCallExpression | (Expression ( "==" | "!=" | "<=" | ">=" | ">" | "<" ) Expression) | VariableReference
     private ExpressionNode BoolExpTerm() throws SyntaxErrorException {
         ExpressionNode node = null;
-        CompareNode no = new CompareNode();
 
         if(!toke.done() && toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.NEWLINE)){
             node = Reference();
@@ -377,7 +388,7 @@ public class Parser {
             node = MethodCallExp();
             return node;
         }
-
+        CompareNode no = new CompareNode();
         no.left = expression();
         if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.LESSTHAN)){
             Optional<Token> a = toke.matchAndRemove(Token.TokenTypes.LESSTHAN);
