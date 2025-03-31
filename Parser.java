@@ -112,7 +112,7 @@ public class Parser {
             }
             if(toke.done()){node.constructors = struct;  node.members = member; node.methods = method; return node;}
             if(toke.peek(0).get().getType().equals(Token.TokenTypes.DEDENT)){toke.matchAndRemove(Token.TokenTypes.DEDENT);}
-            if (!toke.done() && toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.LPAREN) || toke.nextTwoTokensMatch(Token.TokenTypes.PRIVATE, Token.TokenTypes.WORD) || toke.nextTwoTokensMatch(Token.TokenTypes.SHARED, Token.TokenTypes.WORD)) {
+            if (!toke.done() && toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.LPAREN) || toke.nextTwoTokensMatch(Token.TokenTypes.PRIVATE, Token.TokenTypes.WORD) || toke.nextTwoTokensMatch(Token.TokenTypes.SHARED, Token.TokenTypes.WORD) || toke.nextTwoTokensMatch(Token.TokenTypes.PRIVATE, Token.TokenTypes.SHARED)) {
                 method.add(MethodDec());
             }
         }
@@ -218,10 +218,12 @@ public class Parser {
         boolean pivot = false;
         boolean share = false;
         if (toke.peek(0).get().getType().equals(Token.TokenTypes.PRIVATE)){
+            pivot = true;
             node.isPrivate = pivot;
             toke.matchAndRemove(Token.TokenTypes.PRIVATE);
         }
         if (toke.peek(0).get().getType().equals(Token.TokenTypes.SHARED)) {
+            share = true;
             toke.matchAndRemove(Token.TokenTypes.SHARED);
             node.isShared = share;
         }
@@ -474,6 +476,7 @@ public class Parser {
             no.left = node;
             no.op = MathOpNode.MathOperations.multiply;
             no.right = Factor();
+            return no;
         }
         if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.DIVIDE)){
             toke.matchAndRemove(Token.TokenTypes.DIVIDE);
@@ -500,7 +503,7 @@ public class Parser {
             return node;
 
         }
-        if(!toke.done() && toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.LPAREN)){
+        if(!toke.done() && toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.LPAREN) || toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.DOT)){
             node = MethodCallExp();
         }
         if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.WORD)){
@@ -571,7 +574,6 @@ public class Parser {
             node.elseStatement = Optional.empty();
         }
         RequireNewLine();
-
         return node;
     }
 
@@ -595,7 +597,6 @@ public class Parser {
         node.statements = statements();
         return node;
     }
-
 
 
     private MethodHeaderNode MethodHeader() throws SyntaxErrorException {
