@@ -286,7 +286,7 @@ public class Parser {
         MethodCallStatementNode node = new MethodCallStatementNode();
         List<VariableReferenceNode> no = new ArrayList<>();
 
-        if(toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.DOT)){
+        if(toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.DOT) || toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.LPAREN)){
             MethodCallExpressionNode n;
             n = MethodCallExp();
             node.returnValues = no;
@@ -317,6 +317,30 @@ public class Parser {
     private MethodCallExpressionNode MethodCallExp() throws SyntaxErrorException{
         MethodCallExpressionNode node = new MethodCallExpressionNode();
         List<ExpressionNode> exp = new ArrayList<>();
+
+        if(toke.nextTwoTokensMatch(Token.TokenTypes.WORD, Token.TokenTypes.LPAREN)){
+            Optional<Token> b = toke.matchAndRemove(Token.TokenTypes.WORD);
+            node.methodName = b.get().getValue();
+            toke.matchAndRemove(Token.TokenTypes.LPAREN);
+            if(toke.peek(0).get().getType().equals(Token.TokenTypes.RPAREN)){
+                toke.matchAndRemove(Token.TokenTypes.RPAREN);
+                return node;
+            }
+            exp.add(expression());
+
+            while(toke.peek(0).get().getType().equals(Token.TokenTypes.COMMA)){
+                toke.matchAndRemove(Token.TokenTypes.COMMA);
+                exp.add(expression());
+            }
+            if(toke.peek(0).get().getType().equals(Token.TokenTypes.RPAREN)){
+                toke.matchAndRemove(Token.TokenTypes.RPAREN);
+            }else {
+                throw new SyntaxErrorException("missing right parenthesis at method call exp", toke.getCurrentLine(), toke.getCurrentColumnNumber());
+            }
+            node.parameters = exp;
+            return node;
+        }
+
         if(toke.peek(0).get().getType().equals(Token.TokenTypes.WORD)){
             Optional<Token> a = toke.matchAndRemove(Token.TokenTypes.WORD);
             node.objectName = Optional.ofNullable(a.get().getValue());
@@ -331,6 +355,7 @@ public class Parser {
                 }
             }
         }
+
         if(toke.peek(0).get().getType().equals(Token.TokenTypes.LPAREN)){
             toke.matchAndRemove(Token.TokenTypes.LPAREN);
         }else {
