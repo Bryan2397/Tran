@@ -448,21 +448,38 @@ public class Parser {
         MathOpNode no = new MathOpNode();
 
         node = Term();
-        if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.PLUS)){
+        while(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.PLUS)){
             toke.matchAndRemove(Token.TokenTypes.PLUS);
             no.op = MathOpNode.MathOperations.add;
             no.left = node;
             no.right = Term();
-            return no;
+            node = no;
+            while(toke.peek(0).get().getType().equals(Token.TokenTypes.MINUS)){
+                MathOpNode n = new MathOpNode();
+                toke.matchAndRemove(Token.TokenTypes.MINUS);
+                n.left = no;
+                n.op = MathOpNode.MathOperations.subtract;
+                n.right = Factor();
+                no = n;
+                node = no;
+            }
         }
         if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.MINUS)){
             toke.matchAndRemove(Token.TokenTypes.MINUS);
             no.left = node;
             no.op = MathOpNode.MathOperations.subtract;
             no.right = Term();
-            return no;
+            node = no;
+            while(toke.peek(0).get().getType().equals(Token.TokenTypes.PLUS)){
+                MathOpNode n = new MathOpNode();
+                toke.matchAndRemove(Token.TokenTypes.PLUS);
+                n.left = no;
+                n.op = MathOpNode.MathOperations.add;
+                n.right = Factor();
+                no = n;
+                node = n;
+            }
         }
-
 
         return node;
     }
@@ -471,18 +488,37 @@ public class Parser {
         ExpressionNode node = null;
         MathOpNode no = new MathOpNode();
         node = Factor();
-        if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.TIMES)){
+        while(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.TIMES)){
             toke.matchAndRemove(Token.TokenTypes.TIMES);
             no.left = node;
             no.op = MathOpNode.MathOperations.multiply;
             no.right = Factor();
-            return no;
+            node = no;
+            while(toke.peek(0).get().getType().equals(Token.TokenTypes.DIVIDE)){
+                MathOpNode n = new MathOpNode();
+                toke.matchAndRemove(Token.TokenTypes.DIVIDE);
+                n.left = no;
+                n.op = MathOpNode.MathOperations.divide;
+                n.right = Factor();
+                no = n;
+                node = no;
+            }
         }
-        if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.DIVIDE)){
+        while(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.DIVIDE)){
             toke.matchAndRemove(Token.TokenTypes.DIVIDE);
             no.left = node;
             no.op = MathOpNode.MathOperations.divide;
             no.right = Factor();
+            node = no;
+            while(toke.peek(0).get().getType().equals(Token.TokenTypes.TIMES)){
+                MathOpNode n = new MathOpNode();
+                toke.matchAndRemove(Token.TokenTypes.TIMES);
+                n.left = no;
+                n.op = MathOpNode.MathOperations.multiply;
+                n.right = Factor();
+                no = n;
+                node = no;
+            }
         }
         if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.MODULO)){
             toke.matchAndRemove(Token.TokenTypes.MODULO);
@@ -490,12 +526,34 @@ public class Parser {
             no.op = MathOpNode.MathOperations.modulo;
             no.right = Factor();
         }
+
         return node;
     }
     //Factor = NUMBER | VariableReference |  STRINGLITERAL | CHARACTERLITERAL | MethodCallExpression | "(" Expression ")" | "new" IDENTIFIER "(" (Expression ("," Expression )*)? ")"
     private ExpressionNode Factor() throws SyntaxErrorException{
         ExpressionNode node = null;
 
+        if(toke.peek(0).get().getType().equals(Token.TokenTypes.NEW)){
+            List<ExpressionNode> b = new ArrayList<>();
+            NewNode no = new NewNode();
+            toke.matchAndRemove(Token.TokenTypes.NEW);
+            Optional<Token> a = toke.matchAndRemove(Token.TokenTypes.WORD);
+            no.className = a.get().getValue();
+            toke.matchAndRemove(Token.TokenTypes.LPAREN);
+            if(toke.peek(0).get().getType().equals(Token.TokenTypes.RPAREN)){
+                toke.matchAndRemove(Token.TokenTypes.RPAREN);
+                return no;
+            }
+            b.add(expression());
+            while (toke.peek(0).get().getType().equals(Token.TokenTypes.COMMA)){
+                toke.matchAndRemove(Token.TokenTypes.COMMA);
+                b.add(expression());
+            }
+            no.parameters = b;
+            toke.matchAndRemove(Token.TokenTypes.RPAREN);
+            return no;
+
+        }
         if(!toke.done() && toke.peek(0).get().getType().equals(Token.TokenTypes.LPAREN)){
             toke.matchAndRemove(Token.TokenTypes.LPAREN);
             node = expression();
@@ -574,6 +632,7 @@ public class Parser {
             node.elseStatement = Optional.empty();
         }
         RequireNewLine();
+
         return node;
     }
 
@@ -597,6 +656,7 @@ public class Parser {
         node.statements = statements();
         return node;
     }
+
 
 
     private MethodHeaderNode MethodHeader() throws SyntaxErrorException {
