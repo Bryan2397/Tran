@@ -165,8 +165,23 @@ public class Interpreter {
             }
             BooleanLiteralNode a = new BooleanLiteralNode(false);
             return findVariable(a.toString(),locals, object);
-        }else if(expression instanceof BooleanOpNode){
+        } else if (expression instanceof NumericLiteralNode) {
+            NumericLiteralNode a = new NumericLiteralNode();
+            a.value = ((NumericLiteralNode) expression).value;
+            return findVariable(a.toString(), locals, object );
             
+        } else if (expression instanceof CompareNode) {
+            var a = evaluate(locals, object, ((CompareNode) expression).left);
+            if(){
+                
+            }
+            var b = evaluate(locals, object, ((CompareNode) expression).left);
+        }else if(expression instanceof MathOpNode){
+            var a = evaluate(locals, object, ((MathOpNode) expression).left);
+            if(((MathOpNode) expression).op.equals("+")){
+                
+            }
+            var b = evaluate(locals, object, ((MathOpNode) expression).right);
         }
         throw new IllegalArgumentException();
     }
