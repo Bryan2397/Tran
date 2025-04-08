@@ -158,7 +158,16 @@ public class Interpreter {
      * @return a value
      */
     private InterpreterDataType evaluate(HashMap<String, InterpreterDataType> locals, Optional<ObjectIDT> object, ExpressionNode expression) {
-
+        if(expression instanceof BooleanLiteralNode){
+            if(((BooleanLiteralNode) expression).value){
+                BooleanLiteralNode a = new BooleanLiteralNode(true);
+                return findVariable(a.toString(),locals, object);
+            }
+            BooleanLiteralNode a = new BooleanLiteralNode(false);
+            return findVariable(a.toString(),locals, object);
+        }else if(expression instanceof BooleanOpNode){
+            
+        }
         throw new IllegalArgumentException();
     }
 
