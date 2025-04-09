@@ -161,26 +161,41 @@ public class Interpreter {
         if(expression instanceof BooleanLiteralNode){
             if(((BooleanLiteralNode) expression).value){
                 BooleanLiteralNode a = new BooleanLiteralNode(true);
-                return findVariable(a.toString(),locals, object);
+                return new BooleanIDT(a.value);
             }
             BooleanLiteralNode a = new BooleanLiteralNode(false);
-            return findVariable(a.toString(),locals, object);
+            return new BooleanIDT(a.value);
+            
         } else if (expression instanceof NumericLiteralNode) {
             NumericLiteralNode a = new NumericLiteralNode();
             a.value = ((NumericLiteralNode) expression).value;
-            return findVariable(a.toString(), locals, object );
+            return new NumberIDT(a.value);
+
+        } else if (expression instanceof StringLiteralNode) {
+            StringLiteralNode a = new StringLiteralNode();
+            a.value = ((StringLiteralNode) expression).value;
+            return new StringIDT(a.value);
+            
+        } else if (expression instanceof CharLiteralNode) {
+            CharLiteralNode a = new CharLiteralNode();
+            a.value = ((CharLiteralNode) expression).value;
+            return new CharIDT(a.value);
+            
+        } else if (expression instanceof VariableReferenceNode) {
+            VariableReferenceNode a = new VariableReferenceNode();
+            a.name = ((VariableReferenceNode) expression).name;
+            return findVariable(a.toString(), locals, object);
             
         } else if (expression instanceof CompareNode) {
             var a = evaluate(locals, object, ((CompareNode) expression).left);
-            if(){
+            var b = evaluate(locals, object, ((CompareNode) expression).right);
+            if(!a.getClass().equals(b.getClass())){
                 
             }
-            var b = evaluate(locals, object, ((CompareNode) expression).left);
+            
         }else if(expression instanceof MathOpNode){
             var a = evaluate(locals, object, ((MathOpNode) expression).left);
-            if(((MathOpNode) expression).op.equals("+")){
-                
-            }
+            
             var b = evaluate(locals, object, ((MathOpNode) expression).right);
         }
         throw new IllegalArgumentException();
