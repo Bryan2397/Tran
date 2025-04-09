@@ -165,7 +165,7 @@ public class Interpreter {
             }
             BooleanLiteralNode a = new BooleanLiteralNode(false);
             return new BooleanIDT(a.value);
-            
+
         } else if (expression instanceof NumericLiteralNode) {
             NumericLiteralNode a = new NumericLiteralNode();
             a.value = ((NumericLiteralNode) expression).value;
@@ -175,28 +175,172 @@ public class Interpreter {
             StringLiteralNode a = new StringLiteralNode();
             a.value = ((StringLiteralNode) expression).value;
             return new StringIDT(a.value);
-            
+
         } else if (expression instanceof CharLiteralNode) {
             CharLiteralNode a = new CharLiteralNode();
             a.value = ((CharLiteralNode) expression).value;
             return new CharIDT(a.value);
-            
+
         } else if (expression instanceof VariableReferenceNode) {
             VariableReferenceNode a = new VariableReferenceNode();
             a.name = ((VariableReferenceNode) expression).name;
             return findVariable(a.toString(), locals, object);
-            
+
         } else if (expression instanceof CompareNode) {
             var a = evaluate(locals, object, ((CompareNode) expression).left);
             var b = evaluate(locals, object, ((CompareNode) expression).right);
             if(!a.getClass().equals(b.getClass())){
-                
+                throw new IllegalArgumentException();
             }
-            
+            if(b instanceof StringIDT && a instanceof StringIDT && ((CompareNode) expression).op == CompareNode.CompareOperations.eq){
+                int c = a.toString().compareTo(b.toString());
+                if(c == 0){
+                    return new BooleanIDT(true);
+                }else{
+                    return new BooleanIDT(false);
+                }
+            }
+            if(a instanceof StringIDT && b instanceof StringIDT && ((CompareNode) expression).op == CompareNode.CompareOperations.gt){
+                int c = a.toString().compareTo(b.toString());
+                if(c > 0){
+                    return new BooleanIDT(true);
+                }else{
+                    return new BooleanIDT(false);
+                }
+            }
+            if(a instanceof StringIDT && b instanceof StringIDT && ((CompareNode) expression).op == CompareNode.CompareOperations.ge){
+                int c = a.toString().compareTo(b.toString());
+                if(c >= 0){
+                    return new BooleanIDT(true);
+                }else{
+                    return new BooleanIDT(false);
+                }
+            }
+            if(a instanceof StringIDT && b instanceof StringIDT && ((CompareNode) expression).op == CompareNode.CompareOperations.lt){
+                int c = a.toString().compareTo(b.toString());
+                if(c < 0){
+                    return new BooleanIDT(true);
+                }else{
+                    return new BooleanIDT(false);
+                }
+            }
+            if(a instanceof StringIDT && b instanceof StringIDT && ((CompareNode) expression).op == CompareNode.CompareOperations.le){
+                int c = a.toString().compareTo(b.toString());
+                if(c <= 0){
+                    return new BooleanIDT(true);
+                }else{
+                    return new BooleanIDT(false);
+                }
+            }
+            if(a instanceof StringIDT && b instanceof StringIDT && ((CompareNode) expression).op == CompareNode.CompareOperations.ne){
+                int c = a.toString().compareTo(b.toString());
+                if(c != 0){
+                    return new BooleanIDT(true);
+                }else{
+                    return new BooleanIDT(false);
+                }
+            }
+            if(a instanceof CharIDT && b instanceof CharIDT && ((CompareNode) expression).op == CompareNode.CompareOperations.eq){
+                if(((CharIDT)a).Value == ((CharIDT)b).Value){
+                    return new BooleanIDT(true);
+                }else{
+                    return new BooleanIDT(false);
+                }
+            }
+            if(a instanceof CharIDT && b instanceof CharIDT && ((CompareNode) expression).op == CompareNode.CompareOperations.ne){
+                if(((CharIDT)a).Value != ((CharIDT)b).Value){
+                    return new BooleanIDT(true);
+                }else{
+                    return new BooleanIDT(false);
+                }
+            }
+
+            if(a instanceof BooleanIDT && b instanceof BooleanIDT && ((CompareNode) expression).op == CompareNode.CompareOperations.eq){
+                if(a.toString().equals(b.toString())){
+                return new BooleanIDT(true);
+                } else if (a.equals(false) && b.equals(false)) {
+                    return new BooleanIDT(true);
+                }else{
+                    return new BooleanIDT(false);
+                }
+            }
+            if(a instanceof BooleanIDT && b instanceof BooleanIDT && ((CompareNode) expression).op == CompareNode.CompareOperations.ne){
+                if(!a.toString().equals(b.toString())){
+                    return new BooleanIDT(true);
+                } else if (a.equals(false) && b.equals(false)) {
+                    return new BooleanIDT(true);
+                }else{
+                    return new BooleanIDT(false);
+                }
+            }
+            if(a instanceof NumberIDT && b instanceof NumberIDT && ((CompareNode) expression).op == CompareNode.CompareOperations.eq){
+                if(((NumberIDT) a).Value == ((NumberIDT) b).Value){
+                    return new BooleanIDT(true);
+                }else{
+                    return new BooleanIDT(false);
+                }
+            }
+            if(a instanceof NumberIDT && b instanceof NumberIDT && ((CompareNode) expression).op == CompareNode.CompareOperations.ne){
+                if(((NumberIDT) a).Value != ((NumberIDT) b).Value){
+                    return new BooleanIDT(true);
+                }else{
+                    return new BooleanIDT(false);
+                }
+            }
+            if(a instanceof NumberIDT && b instanceof NumberIDT && ((CompareNode) expression).op == CompareNode.CompareOperations.ge){
+                if(((NumberIDT) a).Value >= ((NumberIDT) b).Value){
+                    return new BooleanIDT(true);
+                }else{
+                    return new BooleanIDT(false);
+                }
+            }
+            if(a instanceof NumberIDT && b instanceof NumberIDT && ((CompareNode) expression).op == CompareNode.CompareOperations.gt){
+                if(((NumberIDT) a).Value > ((NumberIDT) b).Value){
+                    return new BooleanIDT(true);
+                }else{
+                    return new BooleanIDT(false);
+                }
+            }
+            if(a instanceof NumberIDT && b instanceof NumberIDT && ((CompareNode) expression).op == CompareNode.CompareOperations.lt){
+                if(((NumberIDT) a).Value < ((NumberIDT) b).Value){
+                    return new BooleanIDT(true);
+                }else{
+                    return new BooleanIDT(false);
+                }
+            }
+            if(a instanceof NumberIDT && b instanceof NumberIDT && ((CompareNode) expression).op == CompareNode.CompareOperations.le){
+                if(((NumberIDT) a).Value <= ((NumberIDT) b).Value){
+                    return new BooleanIDT(true);
+                }else{
+                    return new BooleanIDT(false);
+                }
+            }
+
         }else if(expression instanceof MathOpNode){
             var a = evaluate(locals, object, ((MathOpNode) expression).left);
-            
             var b = evaluate(locals, object, ((MathOpNode) expression).right);
+            
+            if(a instanceof NumberIDT && b instanceof NumberIDT && ((MathOpNode) expression).op == MathOpNode.MathOperations.add){
+                return new NumberIDT(((NumberIDT) a).Value+((NumberIDT) b).Value);
+            }
+            if(a instanceof StringIDT && b instanceof StringIDT && ((MathOpNode) expression).op == MathOpNode.MathOperations.add){
+                return new StringIDT(((StringIDT) a).Value.concat(((StringIDT) b).Value));
+            }
+            if(a instanceof NumberIDT && b instanceof NumberIDT && ((MathOpNode) expression).op == MathOpNode.MathOperations.subtract){
+                return new NumberIDT(((NumberIDT) a).Value-((NumberIDT) b).Value);
+            }
+            if(a instanceof NumberIDT && b instanceof NumberIDT && ((MathOpNode) expression).op == MathOpNode.MathOperations.multiply){
+                return new NumberIDT(((NumberIDT) a).Value*((NumberIDT) b).Value);
+            }
+            if(a instanceof NumberIDT && b instanceof NumberIDT && ((MathOpNode) expression).op == MathOpNode.MathOperations.divide){
+                return new NumberIDT(((NumberIDT) a).Value/((NumberIDT) b).Value);
+            }
+
+            if(a instanceof NumberIDT && b instanceof NumberIDT && ((MathOpNode) expression).op == MathOpNode.MathOperations.modulo){
+                return new NumberIDT(((NumberIDT) a).Value%((NumberIDT) b).Value);
+            }
+        }else if(expression instanceof MethodCallExpressionNode){
+            return interpretMethodCall(object,expression, locals);
         }
         throw new IllegalArgumentException();
     }
