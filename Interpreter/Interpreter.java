@@ -16,9 +16,7 @@ public class Interpreter {
      */
     TranNode top;
 
-    public Interpreter(TranNode top) {
-        this.top = top;
-    }
+    public Interpreter(TranNode top) {this.top = top;}
 
     /**
      * This is the public interface to the interpreter. After parsing, we will create an interpreter and call start to
@@ -55,6 +53,26 @@ public class Interpreter {
      */
     private List<InterpreterDataType> findMethodForMethodCallAndRunIt(Optional<ObjectIDT> object, HashMap<String, InterpreterDataType> locals, MethodCallStatementNode mc) {
         List<InterpreterDataType> result = null;
+
+        if(mc.objectName.isEmpty()){
+            for(int i = 0; i < object.get().astNode.methods.size(); i++){
+                if(mc.methodName.equals(object.get().astNode.methods.get(i).name)){
+                    List<InterpreterDataType> parameters = getParameters(object, locals, mc);
+                    result = interpretMethodCall(object, object.get().astNode.methods.get(i), parameters);
+                    return result;
+                }
+            }
+        } else if (locals.containsKey(mc.objectName.get())) {
+            List<InterpreterDataType> parameters = getParameters(object, locals, mc);
+            result = interpretMethodCall(object, object.get().astNode.methods.get(0), parameters);
+            return result;
+        } else if () {
+
+        }else {
+            throw new RuntimeException();
+        }
+
+
         return result;
     }
 
@@ -76,6 +94,12 @@ public class Interpreter {
      */
     private List<InterpreterDataType> interpretMethodCall(Optional<ObjectIDT> object, MethodDeclarationNode m, List<InterpreterDataType> values) {
         var retVal = new LinkedList<InterpreterDataType>();
+        HashMap<String, InterpreterDataType> a = new HashMap<>();
+
+        for(int i = 0; i < m.locals.size(); i++){
+
+        }
+        //retVal = interpretStatementBlock(object, m.statements, a);
         return retVal;
     }
 
@@ -95,6 +119,21 @@ public class Interpreter {
      * @param newOne - the object that we just created that we are calling the constructor for
      */
     private void findConstructorAndRunIt(Optional<ObjectIDT> callerObj, HashMap<String, InterpreterDataType> locals, MethodCallStatementNode mc, ObjectIDT newOne) {
+        List<InterpreterDataType> a = getParameters(callerObj, locals, mc);
+        if(mc.objectName.isEmpty()){
+            throw new RuntimeException();
+        }
+        Optional<ClassNode> b = getClassByName(mc.objectName.get());
+        if(b.isEmpty()){
+            throw new RuntimeException();
+        }
+        for(int i = 0; i < newOne.astNode.constructors.size(); i++){
+            if(doesConstructorMatch(newOne.astNode.constructors.get(i), mc, a)){
+                interpretConstructorCall(newOne, newOne.astNode.constructors.get(i), a);
+                break;
+            }
+        }
+
     }
 
     /**
@@ -109,6 +148,20 @@ public class Interpreter {
      * @param values - the parameter values being passed to the constructor
      */
     private void interpretConstructorCall(ObjectIDT object, ConstructorNode c, List<InterpreterDataType> values) {
+        HashMap<String,InterpreterDataType> a = new HashMap<>();
+        if(c.parameters.size() != values.size()){
+            throw new RuntimeException();
+        }
+
+        for(int i = 0; i < c.locals.size(); i++){
+            a.put(c.locals.get(i).name, instantiate(c.locals.get(i).type));
+
+        }
+        for(int i = 0; i < object.astNode.members.size(); i++){
+            object.members.put(object.astNode.members.get(i).declaration.name,instantiate(object.astNode.members.get(i).declaration.type));
+        }
+        interpretStatementBlock(Optional.of(object), c.statements, a);
+
     }
 
     //              Running Instructions
@@ -137,6 +190,7 @@ public class Interpreter {
      * @param locals - the local variables
      */
     private void interpretStatementBlock(Optional<ObjectIDT> object, List<StatementNode> statements, HashMap<String, InterpreterDataType> locals) {
+
     }
 
     /**
@@ -319,7 +373,7 @@ public class Interpreter {
         }else if(expression instanceof MathOpNode){
             var a = evaluate(locals, object, ((MathOpNode) expression).left);
             var b = evaluate(locals, object, ((MathOpNode) expression).right);
-            
+
             if(a instanceof NumberIDT && b instanceof NumberIDT && ((MathOpNode) expression).op == MathOpNode.MathOperations.add){
                 return new NumberIDT(((NumberIDT) a).Value+((NumberIDT) b).Value);
             }
@@ -340,7 +394,12 @@ public class Interpreter {
                 return new NumberIDT(((NumberIDT) a).Value%((NumberIDT) b).Value);
             }
         }else if(expression instanceof MethodCallExpressionNode){
-            return interpretMethodCall(object,expression, locals);
+            List<InterpreterDataType> a = new ArrayList<>();
+            for(int i = 0; i < ((MethodCallExpressionNode) expression).parameters.size(); i++){
+                a.add(evaluate(locals, object, ((MethodCallExpressionNode) expression).parameters.get(i)));
+            }
+            MethodCallStatementNode n = new MethodCallStatementNode((MethodCallExpressionNode) expression);
+            ;
         }
         throw new IllegalArgumentException();
     }
@@ -361,12 +420,23 @@ public class Interpreter {
      * @return does this method match the method call?
      */
     private boolean doesMatch(MethodDeclarationNode m, MethodCallStatementNode mc, List<InterpreterDataType> parameters) {
+        if(m.name.equals(mc.methodName)){
+            return false;
+        }
         for(int i = 0; i < m.parameters.size(); i++){
             if(m.parameters.get(i) != mc.parameters.get(i)) {
                 return false;
             }
             if(!typeMatchToIDT(m.parameters.get(i).type, parameters.get(i))){
                 return false;
+            }
+        }
+        if(m.returns.size() != mc.returnValues.size()){
+            return false;
+        }
+        for (int i = 0; i < mc.returnValues.size(); i++){
+            if(!typeMatchToIDT(mc.returnValues.get(i).name , instantiate(m.returns.get(i).name))){
+               return false;
             }
         }
         return true;
