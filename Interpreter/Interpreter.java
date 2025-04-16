@@ -54,7 +54,12 @@ public class Interpreter {
     private List<InterpreterDataType> findMethodForMethodCallAndRunIt(Optional<ObjectIDT> object, HashMap<String, InterpreterDataType> locals, MethodCallStatementNode mc) {
         List<InterpreterDataType> result = null;
 
-        if(mc.objectName.isEmpty()){
+        if(locals.containsKey("console")){
+            List<InterpreterDataType> parameters = getParameters(object, locals, mc);
+            result = interpretMethodCall(object, , parameters);
+            return result;
+        }
+        if(mc.objectName.isPresent()){
             for(int i = 0; i < object.get().astNode.methods.size(); i++){
                 if(mc.methodName.equals(object.get().astNode.methods.get(i).name)){
                     List<InterpreterDataType> parameters = getParameters(object, locals, mc);
@@ -69,14 +74,12 @@ public class Interpreter {
         } else if (getClassByName(mc.objectName.get()).isPresent()) {
             List<InterpreterDataType> parameters = getParameters(object, locals, mc);
             ObjectIDT a = new ObjectIDT(object.get().astNode);
-
             result = interpretMethodCall(object, getMethodFromObject(a, mc, parameters), parameters);
             return result;
 
         }else {
             throw new RuntimeException("exception from findMethodForMethodCall");
         }
-
 
         return result;
     }
@@ -104,7 +107,7 @@ public class Interpreter {
         for(int i = 0; i < m.locals.size(); i++){
         local.put(m.locals.get(i).name, instantiate(m.locals.get(i).type));
         }
-        if(m.locals.size() != values.size()){
+        if(m.parameters.size() != values.size()){
         throw new RuntimeException("locals size and values size aren't equal");
         }
         for(int i = 0; i < values.size();i++){
@@ -169,7 +172,6 @@ public class Interpreter {
 
         for(int i = 0; i < c.locals.size(); i++){
             a.put(c.locals.get(i).name, instantiate(c.locals.get(i).type));
-
         }
         for(int i = 0; i < object.astNode.members.size(); i++){
             object.members.put(object.astNode.members.get(i).declaration.name,instantiate(object.astNode.members.get(i).declaration.type));
@@ -204,7 +206,19 @@ public class Interpreter {
      * @param locals - the local variables
      */
     private void interpretStatementBlock(Optional<ObjectIDT> object, List<StatementNode> statements, HashMap<String, InterpreterDataType> locals) {
-
+        for(int i = 0; i < statements.size(); i++){
+            if(statements.get(i) instanceof AssignmentNode){
+               var a = findVariable(statements.get(i).toString(),locals, object);
+                var b = evaluate(locals,object, ((AssignmentNode) statements.get(i)).expression);
+                b.Assign(a);
+            }
+            if(statements.get(i) instanceof MethodCallStatementNode){
+                List<InterpreterDataType> list = new ArrayList<>();
+                for(int j = 0; j < ((MethodCallStatementNode) statements.get(j)).returnValues.size(); j++){
+                    
+                }
+            }
+        }
     }
 
     /**
