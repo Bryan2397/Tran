@@ -66,10 +66,15 @@ public class Interpreter {
             List<InterpreterDataType> parameters = getParameters(object, locals, mc);
             result = interpretMethodCall(object, object.get().astNode.methods.get(0), parameters);
             return result;
-        } else if () {
+        } else if (getClassByName(mc.objectName.get()).isPresent()) {
+            List<InterpreterDataType> parameters = getParameters(object, locals, mc);
+            ObjectIDT a = new ObjectIDT(object.get().astNode);
+
+            result = interpretMethodCall(object, getMethodFromObject(a, mc, parameters), parameters);
+            return result;
 
         }else {
-            throw new RuntimeException();
+            throw new RuntimeException("exception from findMethodForMethodCall");
         }
 
 
@@ -94,12 +99,21 @@ public class Interpreter {
      */
     private List<InterpreterDataType> interpretMethodCall(Optional<ObjectIDT> object, MethodDeclarationNode m, List<InterpreterDataType> values) {
         var retVal = new LinkedList<InterpreterDataType>();
-        HashMap<String, InterpreterDataType> a = new HashMap<>();
+        HashMap<String, InterpreterDataType> local = new HashMap<>();
 
         for(int i = 0; i < m.locals.size(); i++){
-
+        local.put(m.locals.get(i).name, instantiate(m.locals.get(i).type));
         }
-        //retVal = interpretStatementBlock(object, m.statements, a);
+        if(m.locals.size() != values.size()){
+        throw new RuntimeException("locals size and values size aren't equal");
+        }
+        for(int i = 0; i < values.size();i++){
+            local.put(values.get(i).toString(), values.get(i));
+        }
+        for(int i = 0; i < local.size(); i++){
+            retVal.add(local.get(m.locals.get(i).name));
+        }
+        interpretStatementBlock(object, m.statements, local);
         return retVal;
     }
 
